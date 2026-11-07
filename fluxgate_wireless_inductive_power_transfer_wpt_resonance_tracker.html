@@ -1,0 +1,1574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FluxGate: Wireless Inductive Power Transfer (WPT) Resonance Tracker</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- MathJax Configuration & Engine -->
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']]
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #05070d;
+      color: #e2e8f0;
+      overflow-x: hidden;
+    }
+    .mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .formula-box {
+      background: rgba(3, 7, 18, 0.95);
+      padding: 0.85rem 1.25rem;
+      border-radius: 0.5rem;
+      border: 1px solid #1f2937;
+      text-align: center;
+      color: #38bdf8;
+      overflow-x: auto;
+      margin: 0.65rem 0;
+      box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.4);
+    }
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0b0f19;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e293b;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #334155;
+    }
+    .glow-cyan {
+      box-shadow: 0 0 15px rgba(6, 182, 212, 0.35);
+    }
+    .glow-amber {
+      box-shadow: 0 0 15px rgba(245, 158, 11, 0.35);
+    }
+    .glow-rose {
+      box-shadow: 0 0 15px rgba(239, 68, 68, 0.35);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between selection:bg-cyan-500 selection:text-black">
+
+  <!-- TOP HUD NAVIGATION -->
+  <header class="bg-gray-950/80 backdrop-blur-md border-b border-gray-800/80 sticky top-0 z-50 px-4 lg:px-8 py-3">
+    <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
+      <!-- Title & NASA SBIR Label -->
+      <div class="flex items-center gap-3">
+        <div class="p-2 bg-cyan-950/70 border border-cyan-500/40 rounded-lg text-cyan-400">
+          <i data-lucide="zap" class="w-6 h-6 animate-pulse"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 font-semibold tracking-wider border border-cyan-800/80 mono">NASA SBIR/STTR Z10.02</span>
+            <span class="text-xs px-2 py-0.5 rounded bg-violet-950 text-violet-300 font-semibold tracking-wider border border-violet-800/80 mono">TRL 3 $\to$ 5</span>
+          </div>
+          <h1 class="text-lg md:text-xl font-bold tracking-tight text-white flex items-center gap-2">
+            FluxGate <span class="text-xs font-normal text-gray-400">| WPT Autonomous Resonance & Alignment Tracker</span>
+          </h1>
+        </div>
+      </div>
+
+      <!-- Tab Buttons -->
+      <nav class="flex items-center gap-1 bg-gray-900/90 p-1 rounded-xl border border-gray-800">
+        <button id="tabBtnSim" onclick="switchTab('sim')" class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm">
+          <i data-lucide="activity" class="w-4 h-4"></i>
+          <span>Live Sim & Telemetry</span>
+        </button>
+        <button id="tabBtnPhysics" onclick="switchTab('physics')" class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-400 hover:text-gray-200 transition-all">
+          <i data-lucide="layers" class="w-4 h-4"></i>
+          <span>Physics & Maxwell Engine</span>
+        </button>
+        <button id="tabBtnProposal" onclick="switchTab('proposal')" class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-400 hover:text-gray-200 transition-all">
+          <i data-lucide="file-check-2" class="w-4 h-4"></i>
+          <span>NASA Proposal ($225k)</span>
+        </button>
+        <button id="tabBtnARR" onclick="switchTab('arr')" class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-400 hover:text-gray-200 transition-all">
+          <i data-lucide="trending-up" class="w-4 h-4"></i>
+          <span>Commercial ARR ($214M)</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- MAIN VIEWPORT CONTAINER -->
+  <main class="max-w-7xl mx-auto w-full px-4 lg:px-8 py-5 flex-grow">
+
+    <!-- ========================================== -->
+    <!-- TAB 1: LIVE SIMULATION & TELEMETRY HUD     -->
+    <!-- ========================================== -->
+    <div id="viewSim" class="space-y-5">
+      <!-- Top Alert & System Metric Strip -->
+      <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+        <div class="bg-gray-900/60 border border-gray-800 p-3 rounded-xl backdrop-blur">
+          <div class="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Resonant Frequency ($f$)</div>
+          <div class="text-lg font-bold text-white mono mt-1 flex items-baseline gap-1">
+            <span id="metricFreq">85.42</span> <span class="text-xs text-cyan-400 font-normal">kHz</span>
+          </div>
+          <div class="text-[10px] text-gray-500 mt-0.5">ZVS Tuned Band: 80-92 kHz</div>
+        </div>
+
+        <div class="bg-gray-900/60 border border-gray-800 p-3 rounded-xl backdrop-blur">
+          <div class="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Coupled Flux ($\Phi$)</div>
+          <div class="text-lg font-bold text-white mono mt-1 flex items-baseline gap-1">
+            <span id="metricFlux">42.18</span> <span class="text-xs text-violet-400 font-normal">$\mu$Wb</span>
+          </div>
+          <div class="text-[10px] text-gray-500 mt-0.5">Mutual $M$: <span id="metricMutual">14.8</span> $\mu$H</div>
+        </div>
+
+        <div class="bg-gray-900/60 border border-gray-800 p-3 rounded-xl backdrop-blur">
+          <div class="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">ZVS Soft-Switch Efficiency</div>
+          <div class="text-lg font-bold text-emerald-400 mono mt-1 flex items-baseline gap-1">
+            <span id="metricEff">93.4</span> <span class="text-xs font-normal">%</span>
+          </div>
+          <div class="text-[10px] text-emerald-500/80 mt-0.5" id="metricSwState">Zero-Voltage Active</div>
+        </div>
+
+        <div class="bg-gray-900/60 border border-gray-800 p-3 rounded-xl backdrop-blur">
+          <div class="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Regolith Parasitic Loss</div>
+          <div class="text-lg font-bold text-amber-400 mono mt-1 flex items-baseline gap-1">
+            <span id="metricEddy">4.12</span> <span class="text-xs font-normal">W</span>
+          </div>
+          <div class="text-[10px] text-gray-500 mt-0.5">Sub-surface Eddy Dissipation</div>
+        </div>
+
+        <div class="bg-gray-900/60 border border-gray-800 p-3 rounded-xl backdrop-blur">
+          <div class="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Radial Misalignment ($\Delta r$)</div>
+          <div class="text-lg font-bold text-white mono mt-1 flex items-baseline gap-1">
+            <span id="metricOffset">34.2</span> <span class="text-xs text-rose-400 font-normal">mm</span>
+          </div>
+          <div class="text-[10px] text-gray-500 mt-0.5">Tilt: <span id="metricTilt">4.2</span>&deg; Pitch</div>
+        </div>
+
+        <div class="bg-gray-900/60 border border-gray-800 p-3 rounded-xl backdrop-blur flex flex-col justify-between">
+          <div class="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">DSP Guidance Vector</div>
+          <div class="flex items-center gap-1.5 mt-1">
+            <span id="statusBadge" class="px-2 py-0.5 text-xs font-semibold rounded bg-cyan-950 text-cyan-300 border border-cyan-800">LOCKED_ZVS</span>
+          </div>
+          <div class="text-[10px] text-cyan-400 mono truncate" id="guidanceVector">V_wheel: +12mm/s [X+]</div>
+        </div>
+      </div>
+
+      <!-- Main Canvas & Phase Space Scatter Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        <!-- Physical Pad-to-Receiver Electromagnetic Canvas -->
+        <div class="lg:col-span-7 bg-gray-900/40 border border-gray-800 rounded-2xl p-4 flex flex-col relative overflow-hidden backdrop-blur">
+          <div class="flex items-center justify-between pb-3 border-b border-gray-800/80 mb-3">
+            <div class="flex items-center gap-2">
+              <i data-lucide="radio" class="w-4 h-4 text-cyan-400"></i>
+              <span class="text-xs font-bold uppercase tracking-wider text-gray-200">Lunar Surface Hardware Coupling Rig</span>
+            </div>
+            <div class="flex items-center gap-2 text-xs mono text-gray-400">
+              <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+              DSP Sampling: <span class="text-cyan-300">200 kHz</span>
+            </div>
+          </div>
+
+          <!-- Simulation Graphic Canvas -->
+          <div class="relative w-full h-[320px] rounded-xl overflow-hidden bg-[#03050a] border border-gray-900 flex items-center justify-center">
+            <canvas id="simCanvas" class="w-full h-full block"></canvas>
+            
+            <!-- Floating overlay coordinates -->
+            <div class="absolute bottom-2 left-2 bg-gray-950/80 backdrop-blur px-2 py-1 rounded text-[11px] mono text-gray-400 border border-gray-800 pointer-events-none">
+              Rover Rx Coil: <span class="text-cyan-300" id="canvasRoverPos">[X: 0mm, Z: 55mm]</span> | Coil $\kappa$: <span class="text-violet-300" id="canvasCoupling">0.28</span>
+            </div>
+            <div class="absolute top-2 right-2 flex flex-col items-end gap-1 pointer-events-none">
+              <span class="bg-gray-950/80 backdrop-blur px-2 py-0.5 rounded text-[10px] mono text-yellow-300 border border-yellow-800/60" id="thermalWarning">
+                COIL TEMP: 318 K (NOMINAL)
+              </span>
+            </div>
+          </div>
+
+          <!-- Quick Interactive Scrubbers / Perturbations -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3 pt-3 border-t border-gray-800/60">
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-gray-400">Lateral Offset ($\Delta x$)</span>
+                <span class="mono text-cyan-300" id="labelOffsetX">30 mm</span>
+              </div>
+              <input type="range" id="sliderOffsetX" min="-120" max="120" value="30" class="w-full accent-cyan-500 bg-gray-800 h-1.5 rounded cursor-pointer">
+            </div>
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-gray-400">Airgap Height ($z_0$)</span>
+                <span class="mono text-violet-300" id="labelGapZ">55 mm</span>
+              </div>
+              <input type="range" id="sliderGapZ" min="20" max="150" value="55" class="w-full accent-violet-500 bg-gray-800 h-1.5 rounded cursor-pointer">
+            </div>
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-gray-400">Regolith Tilt Angle ($\theta$)</span>
+                <span class="mono text-amber-300" id="labelTilt">4.0 &deg;</span>
+              </div>
+              <input type="range" id="sliderTilt" min="-25" max="25" value="4" class="w-full accent-amber-500 bg-gray-800 h-1.5 rounded cursor-pointer">
+            </div>
+          </div>
+        </div>
+
+        <!-- Phase-Space Diagnostic Chart (X: f, Y: Phi) -->
+        <div class="lg:col-span-5 bg-gray-900/40 border border-gray-800 rounded-2xl p-4 flex flex-col backdrop-blur">
+          <div class="flex items-center justify-between pb-3 border-b border-gray-800/80 mb-3">
+            <div class="flex items-center gap-2">
+              <i data-lucide="compass" class="w-4 h-4 text-violet-400"></i>
+              <span class="text-xs font-bold uppercase tracking-wider text-gray-200">Phase-Space State Observer ($f$ vs. $\Phi$)</span>
+            </div>
+            <span class="text-[10px] px-2 py-0.5 rounded bg-violet-950 text-violet-300 mono border border-violet-800">ZVS Valley Basin</span>
+          </div>
+
+          <div class="relative flex-grow h-[260px]">
+            <canvas id="phaseChart"></canvas>
+          </div>
+
+          <!-- Phase Space Legend / Diagnostic Guide -->
+          <div class="mt-3 grid grid-cols-2 gap-2 text-[11px] bg-gray-950/60 p-2 rounded-lg border border-gray-800/80">
+            <div class="flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-sm"></span>
+              <span class="text-gray-300">Live Operating Point $(f_0, \Phi)$</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <span class="w-2.5 h-0.5 bg-emerald-400"></span>
+              <span class="text-gray-400">Optimum ZVS Contour</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <span class="w-2.5 h-0.5 border-t border-dashed border-rose-500"></span>
+              <span class="text-gray-400">Hard-Switch Thermal Boundary</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 bg-violet-500/30 border border-violet-400/50 rounded-sm"></span>
+              <span class="text-gray-400">Autonomous Capture Corridor</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Closed-Loop Control Bar & Secondary Strip Charts -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        <!-- Control Actions & Anomaly Injection -->
+        <div class="lg:col-span-4 bg-gray-900/40 border border-gray-800 rounded-2xl p-4 backdrop-blur space-y-3">
+          <div class="flex items-center justify-between pb-2 border-b border-gray-800/80">
+            <span class="text-xs font-bold uppercase tracking-wider text-gray-300 flex items-center gap-2">
+              <i data-lucide="sliders" class="w-4 h-4 text-cyan-400"></i>
+              Autonomous Closed-Loop Mode
+            </span>
+            <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 mono border border-emerald-800" id="dspControlState">CLOSED_LOOP_ACTIVE</span>
+          </div>
+
+          <div class="space-y-2">
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-gray-400">DSP Frequency Tracking Loop</span>
+              <button id="toggleClosedLoop" class="px-3 py-1 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-mono text-xs hover:bg-cyan-500/30 transition">
+                ACTIVE [AUTO]
+              </button>
+            </div>
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-gray-400">Rover Wheel Actuator Feedback</span>
+              <button id="toggleRoverWheels" class="px-3 py-1 rounded bg-violet-500/20 text-violet-300 border border-violet-500/40 font-mono text-xs hover:bg-violet-500/30 transition">
+                DOCKING_LINK [ON]
+              </button>
+            </div>
+          </div>
+
+          <!-- Fault Injection Suite -->
+          <div class="pt-2 border-t border-gray-800">
+            <span class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 block mb-2">Simulate Lunar Fault Anomaly:</span>
+            <div class="grid grid-cols-2 gap-2">
+              <button onclick="injectFault('crater_slip')" class="px-2.5 py-1.5 rounded-lg bg-gray-800/80 hover:bg-rose-950 hover:border-rose-700/80 border border-gray-700 text-gray-300 text-xs font-medium transition flex items-center gap-1.5">
+                <i data-lucide="alert-triangle" class="w-3.5 h-3.5 text-rose-400"></i>
+                Rim Slope Slip
+              </button>
+              <button onclick="injectFault('ilmenite_pocket')" class="px-2.5 py-1.5 rounded-lg bg-gray-800/80 hover:bg-amber-950 hover:border-amber-700/80 border border-gray-700 text-gray-300 text-xs font-medium transition flex items-center gap-1.5">
+                <i data-lucide="flame" class="w-3.5 h-3.5 text-amber-400"></i>
+                Ilmenite Regolith
+              </button>
+              <button onclick="injectFault('sudden_decouple')" class="px-2.5 py-1.5 rounded-lg bg-gray-800/80 hover:bg-orange-950 hover:border-orange-700/80 border border-gray-700 text-gray-300 text-xs font-medium transition flex items-center gap-1.5">
+                <i data-lucide="maximize" class="w-3.5 h-3.5 text-orange-400"></i>
+                Step Lift (110mm)
+              </button>
+              <button onclick="resetNominal()" class="px-2.5 py-1.5 rounded-lg bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-800 text-cyan-300 text-xs font-medium transition flex items-center gap-1.5">
+                <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-cyan-400"></i>
+                Center Alignment
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Telemetry Time Series 1: Transfer Power & Efficiency -->
+        <div class="lg:col-span-4 bg-gray-900/40 border border-gray-800 rounded-2xl p-4 backdrop-blur flex flex-col">
+          <div class="flex items-center justify-between pb-2 border-b border-gray-800/80 mb-2">
+            <span class="text-xs font-bold uppercase tracking-wider text-gray-300 flex items-center gap-2">
+              <i data-lucide="line-chart" class="w-4 h-4 text-emerald-400"></i>
+              Transferred Power & ZVS Metric
+            </span>
+            <span class="text-[10px] mono text-emerald-400" id="livePwrLabel">2.42 kW @ 93.4%</span>
+          </div>
+          <div class="relative flex-grow h-[150px]">
+            <canvas id="pwrChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Telemetry Time Series 2: Regolith Heating & Current Strain -->
+        <div class="lg:col-span-4 bg-gray-900/40 border border-gray-800 rounded-2xl p-4 backdrop-blur flex flex-col">
+          <div class="flex items-center justify-between pb-2 border-b border-gray-800/80 mb-2">
+            <span class="text-xs font-bold uppercase tracking-wider text-gray-300 flex items-center gap-2">
+              <i data-lucide="thermometer-snowflake" class="w-4 h-4 text-amber-400"></i>
+              Parasitic Eddy & Bridge Stress
+            </span>
+            <span class="text-[10px] mono text-amber-400" id="liveEddyLabel">4.1W loss</span>
+          </div>
+          <div class="relative flex-grow h-[150px]">
+            <canvas id="eddyChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TAB 2: CORE PHYSICS & MAXWELL MODEL        -->
+    <!-- ========================================== -->
+    <div id="viewPhysics" class="hidden space-y-6">
+      <!-- Section Intro Card -->
+      <div class="bg-gray-900/40 border border-gray-800 rounded-2xl p-6 backdrop-blur">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="p-2.5 bg-violet-950/80 border border-violet-600/40 rounded-xl text-violet-400">
+            <i data-lucide="cpu" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <h2 class="text-xl font-bold text-white tracking-tight">Electrodynamic Formulation & ZVS Resonance Tracking</h2>
+            <p class="text-xs text-gray-400">Coupled Mutual Inductance Dynamics under Perturbed Lunar Permeability</p>
+          </div>
+        </div>
+        <p class="text-sm text-gray-300 leading-relaxed">
+          In terrestrial resonant wireless chargers, secondary coil position is fixed or mechanically constrained. In lunar exploration, an autonomous rover approaches a stationary charging apron across loose regolith dust ($\text{FeTiO}_3$), craters, and boulder mounds. Changes in displacement vector $\mathbf{r} = (\Delta x, \Delta y, \Delta z)$ and spatial pitch $\theta$ cause extreme shifts in coupling coefficient $\kappa(\mathbf{r})$ and primary-to-secondary mutual inductance $M(\mathbf{r})$, detuning the system away from Zero-Voltage Switching (ZVS) and producing lethal thermal dissipation inside GaN bridge FETs.
+        </p>
+      </div>
+
+      <!-- 4 Deep Physics & Hardware Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <!-- Card 1: Governing Maxwell Mutual Induction Equations -->
+        <div class="bg-gray-900/40 border border-gray-800 rounded-2xl p-5 backdrop-blur flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between pb-2 border-b border-gray-800/80 mb-3">
+              <h3 class="text-sm font-bold text-cyan-300 flex items-center gap-2">
+                <i data-lucide="sigma" class="w-4 h-4"></i>
+                1. Coupled Resonant Induction & Flux Linkage
+              </h3>
+              <span class="text-[10px] px-2 py-0.5 rounded bg-gray-800 text-gray-400 mono">Neumann Induction</span>
+            </div>
+            <p class="text-xs text-gray-300 leading-relaxed">
+              Mutual inductance $M$ between primary pad coil $C_1$ and rover receiver $C_2$ is governed by the Neumann integral over closed contours with lunar spatial misalignment $\mathbf{R}_{12}$:
+            </p>
+            <div class="formula-box">
+              $$M(\mathbf{r}) = \frac{\mu_0 \mu_r}{4\pi} \oint_{C_1} \oint_{C_2} \frac{d\mathbf{s}_1 \cdot d\mathbf{s}_2}{\|\mathbf{r}_1 - \mathbf{r}_2\|}$$
+            </div>
+            <p class="text-xs text-gray-300 leading-relaxed mt-2">
+              The primary linked magnetic flux $\Phi_1(t)$ includes self and cross-coupled components modulated by the operating switching frequency $\omega = 2\pi f$:
+            </p>
+            <div class="formula-box">
+              $$\Phi_1(\omega) = L_1 I_1(\omega) + M(\mathbf{r}) I_2(\omega) e^{j\phi(\omega)}$$
+            </div>
+          </div>
+          <div class="text-[11px] text-gray-500 pt-3 border-t border-gray-800">
+            Note: In lunar regolith, $\mu_r \approx 1.002$ to $1.04$ depending on ferromagnetic sub-millimeter iron ($\text{Fe}^0$) nanophase concentrations.
+          </div>
+        </div>
+
+        <!-- Card 2: ZVS Impedance Condition & Frequency Detuning -->
+        <div class="bg-gray-900/40 border border-gray-800 rounded-2xl p-5 backdrop-blur flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between pb-2 border-b border-gray-800/80 mb-3">
+              <h3 class="text-sm font-bold text-violet-300 flex items-center gap-2">
+                <i data-lucide="activity" class="w-4 h-4"></i>
+                2. Zero-Voltage Switching (ZVS) Tank Inversion
+              </h3>
+              <span class="text-[10px] px-2 py-0.5 rounded bg-gray-800 text-gray-400 mono">Tank Impedance</span>
+            </div>
+            <p class="text-xs text-gray-300 leading-relaxed">
+              To achieve soft-switching, the input impedance $Z_{\text{in}}$ seen by the primary GaN full-bridge must remain slightly inductive, satisfying the zero-voltage turn-on criterion:
+            </p>
+            <div class="formula-box">
+              $$Z_{\text{in}}(\omega, \mathbf{r}) = j\omega L_1 + \frac{1}{j\omega C_1} + \frac{\omega^2 M(\mathbf{r})^2}{R_L + j\omega L_2 + \frac{1}{j\omega C_2}}$$
+            </div>
+            <p class="text-xs text-gray-300 leading-relaxed mt-2">
+              The exact resonance pole $\omega_0(\mathbf{r})$ splits and shifts as mutual inductance $M(\mathbf{r})$ decreases during mechanical yaw, pitch, or roll:
+            </p>
+            <div class="formula-box">
+              $$\omega_{\text{res}}(\mathbf{r}) = \frac{1}{\sqrt{L_1 C_1 \left(1 - \frac{M(\mathbf{r})^2}{L_1 L_2}\right)}} = \frac{\omega_0}{\sqrt{1 - \kappa(\mathbf{r})^2}}$$
+            </div>
+          </div>
+          <div class="text-[11px] text-gray-500 pt-3 border-t border-gray-800">
+            Hard-switching penalty: If phase angle $\angle Z_{\text{in}} < 0$, capacitive discharge blows out GaN bridge within $<140\,\mu\text{s}$.
+          </div>
+        </div>
+
+        <!-- Card 3: Regolith Heating & Eddy-Current Loss Form -->
+        <div class="bg-gray-900/40 border border-gray-800 rounded-2xl p-5 backdrop-blur flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between pb-2 border-b border-gray-800/80 mb-3">
+              <h3 class="text-sm font-bold text-amber-300 flex items-center gap-2">
+                <i data-lucide="flame" class="w-4 h-4"></i>
+                3. Sub-Surface Regolith Eddy Heating Dynamics
+              </h3>
+              <span class="text-[10px] px-2 py-0.5 rounded bg-gray-800 text-gray-400 mono">Poynting Loss</span>
+            </div>
+            <p class="text-xs text-gray-300 leading-relaxed">
+              High iron lunar mare soils contain ilmenite ($\text{FeTiO}_3$) grains. The fringing magnetic field $\mathbf{H}(\mathbf{r}, t)$ generates parasitic loss $P_{\text{regolith}}$ through volumetric eddy dissipation:
+            </p>
+            <div class="formula-box">
+              $$P_{\text{eddy}} = \iiint_V \frac{1}{2} \sigma_{\text{regolith}} \|\mathbf{E}_{\text{ind}}\|^2 dV = \frac{\pi^2 \sigma f^2 d^2}{6 \rho} \hat{B}_{\text{fringe}}^2$$
+            </div>
+            <p class="text-xs text-gray-300 leading-relaxed mt-2">
+              FluxGate's predictive DSP minimizes fringing $\mathbf{B}_{\text{fringe}}$ by dynamically collapsing drive current when $\kappa(\mathbf{r}) < 0.12$:
+            </p>
+            <div class="formula-box">
+              $$\nabla \times \mathbf{E} = -\frac{\partial \mathbf{B}}{\partial t}, \quad \mathbf{J}_{\text{eddy}} = \sigma_{\text{eff}} (\mathbf{E} + \mathbf{v} \times \mathbf{B})$$
+            </div>
+          </div>
+          <div class="text-[11px] text-gray-500 pt-3 border-t border-gray-800">
+            Excess regolith heating damages lunar cryo-instruments and degrades subsurface ice stability in permanently shadowed regions (PSRs).
+          </div>
+        </div>
+
+        <!-- Card 4: DSP State Observer & Wheel Inversion Vector -->
+        <div class="bg-gray-900/40 border border-gray-800 rounded-2xl p-5 backdrop-blur flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between pb-2 border-b border-gray-800/80 mb-3">
+              <h3 class="text-sm font-bold text-emerald-300 flex items-center gap-2">
+                <i data-lucide="compass" class="w-4 h-4"></i>
+                4. Real-Time Spatial Inversion & Wheel Vector
+              </h3>
+              <span class="text-[10px] px-2 py-0.5 rounded bg-gray-800 text-gray-400 mono">Extended Kalman</span>
+            </div>
+            <p class="text-xs text-gray-300 leading-relaxed">
+              By sampling primary bridge current $I_1$, sense voltage $V_1$, and resonant zero-crossings at 200 kHz, the DSP state observer inverts the spatial displacement gradient $\nabla_{\mathbf{r}} \Phi$:
+            </p>
+            <div class="formula-box">
+              $$\mathbf{v}_{\text{rover}} = -\mathbf{K}_p \left[ \nabla_{\mathbf{r}} \Phi(f, \mathbf{r}) \right]^{-1} \cdot (\Phi_{\text{target}} - \Phi_{\text{measured}})$$
+            </div>
+            <p class="text-xs text-gray-300 leading-relaxed mt-2">
+              The closed-loop steering command vector $\mathbf{u}_{\text{actuator}} = [v_x, v_y, \omega_z]^T$ drives the rover wheel hubs directly into the ZVS energy saddle point:
+            </p>
+            <div class="formula-box">
+              $$\mathbf{u}_{\text{actuator}} = \arg\max_{\mathbf{r}} \left( \eta_{\text{ZVS}}(f, \mathbf{r}) - \lambda P_{\text{loss}}(\mathbf{r}) \right)$$
+            </div>
+          </div>
+          <div class="text-[11px] text-gray-500 pt-3 border-t border-gray-800">
+            Eliminates external LiDAR or optical cameras blinded by kicked-up abrasive lunar dust.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TAB 3: NASA SBIR/STTR PROPOSAL & TRANSITION-->
+    <!-- ========================================== -->
+    <div id="viewProposal" class="hidden space-y-6">
+      <!-- Proposal Header Banner -->
+      <div class="bg-gradient-to-r from-cyan-950/40 via-gray-900/60 to-violet-950/40 border border-cyan-800/40 rounded-2xl p-6 backdrop-blur">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="text-xs px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-semibold tracking-wider mono">NASA SBIR/STTR Phase I Solicitation</span>
+              <span class="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-semibold mono">$225,000 Firm-Fixed Price</span>
+            </div>
+            <h2 class="text-xl md:text-2xl font-bold text-white tracking-tight">Autonomous Proximity Inductive Power Transfer for Extreme Lunar Environments</h2>
+            <p class="text-xs text-gray-400 mt-1">Topic Code: <span class="text-cyan-300 mono">Z10.02-3914</span> | Subtopic: In-Space & Planetary Surface Power Distribution</p>
+          </div>
+          <div class="flex md:flex-col items-end justify-between gap-1 text-right">
+            <span class="text-xs text-gray-400">Duration: <strong class="text-white">6 Months</strong></span>
+            <span class="text-xs text-gray-400">PI: <strong class="text-cyan-300">Dr. H. Vance, PhD</strong></span>
+            <span class="text-xs text-gray-400">Submission Code: <strong class="text-violet-300 mono">WPT-FLUX-2026-STTR</strong></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- University Subcontract Breakdown Card -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <div class="bg-gray-900/40 border border-gray-800 rounded-2xl p-5 backdrop-blur flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between pb-2 border-b border-gray-800/80 mb-3">
+              <h3 class="text-sm font-bold text-violet-300 flex items-center gap-2">
+                <i data-lucide="graduation-cap" class="w-4 h-4"></i>
+                STTR Partner Allocation (30.0%)
+              </h3>
+              <span class="text-xs font-mono text-emerald-400 font-bold">$67,500</span>
+            </div>
+            <h4 class="text-sm font-semibold text-white">University of Central Florida (UCF)</h4>
+            <p class="text-xs text-gray-400 mt-0.5">Center for Advanced Turbomachinery & Energy Research (CATER)</p>
+            <ul class="text-xs text-gray-300 space-y-2 mt-4">
+              <li class="flex items-start gap-2">
+                <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-cyan-400 mt-0.5 flex-shrink-0"></i>
+                <span><strong>Exolith Lunar Simulant Bed:</strong> 3-meter vacuum vacuum-compatible sandbox using LMS-1 / LHS-1 highland & mare simulant.</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-cyan-400 mt-0.5 flex-shrink-0"></i>
+                <span><strong>Thermal-Vacuum (TVAC) Coils:</strong> Cryogenic characterization down to 40 K (Permanently Shadowed Region envelope).</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-cyan-400 mt-0.5 flex-shrink-0"></i>
+                <span><strong>High-Frequency Impedance Analyzers:</strong> 10 Hz to 30 MHz precision vector network analysis.</span>
+              </li>
+            </ul>
+          </div>
+          <div class="mt-4 pt-3 border-t border-gray-800 text-[11px] text-gray-400 mono">
+            Lead Co-PI: Dr. Subhashish Roy (UCF Dept of ECE)
+          </div>
+        </div>
+
+        <!-- 6-Month Work Breakdown Milestones -->
+        <div class="lg:col-span-2 bg-gray-900/40 border border-gray-800 rounded-2xl p-5 backdrop-blur">
+          <h3 class="text-sm font-bold text-white mb-3 flex items-center justify-between pb-2 border-b border-gray-800/80">
+            <span class="flex items-center gap-2">
+              <i data-lucide="calendar" class="w-4 h-4 text-cyan-400"></i>
+              Phase I Work Breakdown Schedule (Months 1–6)
+            </span>
+            <span class="text-xs text-cyan-400 mono font-semibold">TRL 3 $\to$ TRL 4+</span>
+          </h3>
+
+          <div class="space-y-3">
+            <div class="p-3 bg-gray-950/60 rounded-xl border border-gray-800/80 flex items-start gap-3">
+              <span class="px-2 py-0.5 text-xs font-mono rounded bg-cyan-950 text-cyan-300 border border-cyan-800">M1–M2</span>
+              <div class="flex-grow">
+                <div class="flex items-center justify-between">
+                  <h4 class="text-xs font-bold text-gray-200">Electrodynamic Field & Regolith Permittivity Modeling</h4>
+                  <span class="text-[11px] text-emerald-400 font-mono">$45,000</span>
+                </div>
+                <p class="text-[11px] text-gray-400 mt-0.5">Formulate 3D finite-element boundary models of high-frequency magnetic fringe fields across LHS-1 lunar simulant; calibrate eddy dissipation curves in COMSOL.</p>
+              </div>
+            </div>
+
+            <div class="p-3 bg-gray-950/60 rounded-xl border border-gray-800/80 flex items-start gap-3">
+              <span class="px-2 py-0.5 text-xs font-mono rounded bg-cyan-950 text-cyan-300 border border-cyan-800">M3–M4</span>
+              <div class="flex-grow">
+                <div class="flex items-center justify-between">
+                  <h4 class="text-xs font-bold text-gray-200">Sensorless Spatial Observer & DSP Tracking Algorithm</h4>
+                  <span class="text-[11px] text-emerald-400 font-mono">$60,000</span>
+                </div>
+                <p class="text-[11px] text-gray-400 mt-0.5">Embed 200 kHz real-time $(f, \Phi)$ gradient descent observer into TI TMS320F28379D Dual-Core DSP; benchmark tracking latency under &lt;5 ms.</p>
+              </div>
+            </div>
+
+            <div class="p-3 bg-gray-950/60 rounded-xl border border-gray-800/80 flex items-start gap-3">
+              <span class="px-2 py-0.5 text-xs font-mono rounded bg-cyan-950 text-cyan-300 border border-cyan-800">M5</span>
+              <div class="flex-grow">
+                <div class="flex items-center justify-between">
+                  <h4 class="text-xs font-bold text-gray-200">Hardware-in-the-Loop (HIL) Breadboard at UCF CATER</h4>
+                  <span class="text-[11px] text-emerald-400 font-mono">$70,000</span>
+                </div>
+                <p class="text-[11px] text-gray-400 mt-0.5">Couple 3 kW GaN bridge inverter with 400 mm Litz transmitter pad in vacuum regolith rig; validate 92%+ transfer efficiency at 80 mm offset.</p>
+              </div>
+            </div>
+
+            <div class="p-3 bg-gray-950/60 rounded-xl border border-gray-800/80 flex items-start gap-3">
+              <span class="px-2 py-0.5 text-xs font-mono rounded bg-cyan-950 text-cyan-300 border border-cyan-800">M6</span>
+              <div class="flex-grow">
+                <div class="flex items-center justify-between">
+                  <h4 class="text-xs font-bold text-gray-200">Phase II Engineering Model Specs & Flight Roadmap</h4>
+                  <span class="text-[11px] text-emerald-400 font-mono">$50,000</span>
+                </div>
+                <p class="text-[11px] text-gray-400 mt-0.5">Deliver flight qualification schematics, rad-hard GaN switch architecture, and Phase II demonstration plan with commercial lunar lander providers.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Phase II Transition & Commercialization Pathway -->
+      <div class="bg-gray-900/40 border border-gray-800 rounded-2xl p-5 backdrop-blur">
+        <h3 class="text-sm font-bold text-white mb-3 flex items-center gap-2 pb-2 border-b border-gray-800/80">
+          <i data-lucide="rocket" class="w-4 h-4 text-violet-400"></i>
+          Phase II Scaling ($1,250,000) & Artemis CLPS Integration
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+          <div class="p-3 bg-gray-950/60 rounded-xl border border-gray-800">
+            <span class="text-cyan-400 font-bold block mb-1">Commercial Lunar Payload Services (CLPS)</span>
+            <p class="text-gray-400">Targeting flight demo on Intuitive Machines or Astrobotic landers. Standardizes inductive pad interface for autonomous VIPER-class and commercial prospecting rovers.</p>
+          </div>
+          <div class="p-3 bg-gray-950/60 rounded-xl border border-gray-800">
+            <span class="text-violet-400 font-bold block mb-1">Radiation-Hardened Dual-DSP Controller</span>
+            <p class="text-gray-400">Migration to BAE RAD5545 or Vorago VA41630 ARM Cortex-M4 with triple modular redundancy (TMR) for permanent operation in polar PSR lunar night cycles.</p>
+          </div>
+          <div class="p-3 bg-gray-950/60 rounded-xl border border-gray-800">
+            <span class="text-emerald-400 font-bold block mb-1">Autonomous Charging Station Standard</span>
+            <p class="text-gray-400">Enables rovers to recharge without mechanical docking pins that weld shut in high-vacuum or get clogged with electrostatic abrasive lunar dust.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TAB 4: COMMERCIAL & NATIONWIDE ARR         -->
+    <!-- ========================================== -->
+    <div id="viewARR" class="hidden space-y-6">
+      <!-- ARR Top Level Overview -->
+      <div class="bg-gradient-to-r from-emerald-950/40 via-gray-900/60 to-cyan-950/40 border border-emerald-800/40 rounded-2xl p-6 backdrop-blur">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-semibold mono">Civil & Commercial Software Portfolio</span>
+              <span class="text-xs px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-semibold mono">Target Mature TAM: $1.8B</span>
+            </div>
+            <h2 class="text-2xl font-bold text-white tracking-tight">Nationwide ARR Target: <span class="text-emerald-400 mono">$214.2M</span></h2>
+            <p class="text-xs text-gray-400 mt-1">Enterprise Firmware Licensing & Autonomous Inductive Power Fleet Runtime Infrastructure</p>
+          </div>
+          <div class="text-right">
+            <div class="text-xs text-gray-400">Enterprise Valuation (10x Multiple)</div>
+            <div class="text-2xl font-bold text-white mono mt-0.5">$2.14 Billion</div>
+            <div class="text-[10px] text-gray-500">Contact: support@rfwavecode.com</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ARR Vertical Distribution Table -->
+      <div class="bg-gray-900/40 border border-gray-800 rounded-2xl p-5 backdrop-blur overflow-x-auto">
+        <h3 class="text-sm font-bold text-white mb-3 flex items-center justify-between">
+          <span class="flex items-center gap-2">
+            <i data-lucide="table" class="w-4 h-4 text-emerald-400"></i>
+            Civil Commercial Revenue Breakdown by Target Market
+          </span>
+          <span class="text-xs text-gray-400 mono">FY2028-2032 Projection</span>
+        </h3>
+        <table class="w-full text-left text-xs border-collapse">
+          <thead>
+            <tr class="border-b border-gray-800 text-gray-400 uppercase tracking-wider font-semibold">
+              <th class="py-2.5 px-3">Commercial Vertical</th>
+              <th class="py-2.5 px-3">Target Asset Application</th>
+              <th class="py-2.5 px-3">SaaS / Firmware Model</th>
+              <th class="py-2.5 px-3">Addressable Base</th>
+              <th class="py-2.5 px-3 text-right">Target ARR</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-800/60 font-mono">
+            <tr class="hover:bg-gray-800/30">
+              <td class="py-3 px-3 font-sans font-medium text-white flex items-center gap-2">
+                <i data-lucide="truck" class="w-4 h-4 text-cyan-400"></i>
+                Warehouse Logistics & AGVs
+              </td>
+              <td class="py-3 px-3 text-gray-300">Automated Guided Vehicles & Autonomous Forklifts</td>
+              <td class="py-3 px-3 text-gray-400">$850 / pad / year</td>
+              <td class="py-3 px-3 text-gray-400">78,000 Depots</td>
+              <td class="py-3 px-3 text-right font-bold text-emerald-400">$66.3M</td>
+            </tr>
+            <tr class="hover:bg-gray-800/30">
+              <td class="py-3 px-3 font-sans font-medium text-white flex items-center gap-2">
+                <i data-lucide="mountain" class="w-4 h-4 text-amber-400"></i>
+                Autonomous Surface Mining
+              </td>
+              <td class="py-3 px-3 text-gray-300">Heavy Haul Electric Trucks & Slurry Diggers</td>
+              <td class="py-3 px-3 text-gray-400">$6,500 / mega-station / yr</td>
+              <td class="py-3 px-3 text-gray-400">6,800 Pits</td>
+              <td class="py-3 px-3 text-right font-bold text-emerald-400">$44.2M</td>
+            </tr>
+            <tr class="hover:bg-gray-800/30">
+              <td class="py-3 px-3 font-sans font-medium text-white flex items-center gap-2">
+                <i data-lucide="plane" class="w-4 h-4 text-violet-400"></i>
+                Commercial Aviation Ground Support
+              </td>
+              <td class="py-3 px-3 text-gray-300">Tarmac Baggage Tugs, Pushback Tractors</td>
+              <td class="py-3 px-3 text-gray-400">$2,400 / gate node / yr</td>
+              <td class="py-3 px-3 text-gray-400">14,500 Gates</td>
+              <td class="py-3 px-3 text-right font-bold text-emerald-400">$34.8M</td>
+            </tr>
+            <tr class="hover:bg-gray-800/30">
+              <td class="py-3 px-3 font-sans font-medium text-white flex items-center gap-2">
+                <i data-lucide="globe-2" class="w-4 h-4 text-blue-400"></i>
+                Municipal Bus Flash-Charging
+              </td>
+              <td class="py-3 px-3 text-gray-300">Curbside In-Pavement Fast-Chargers (150kW)</td>
+              <td class="py-3 px-3 text-gray-400">$3,200 / transit curb / yr</td>
+              <td class="py-3 px-3 text-gray-400">9,800 Stops</td>
+              <td class="py-3 px-3 text-right font-bold text-emerald-400">$31.3M</td>
+            </tr>
+            <tr class="hover:bg-gray-800/30">
+              <td class="py-3 px-3 font-sans font-medium text-white flex items-center gap-2">
+                <i data-lucide="sprout" class="w-4 h-4 text-green-400"></i>
+                Autonomous Precision Ag Swarms
+              </td>
+              <td class="py-3 px-3 text-gray-300">Electric Weeding Robots & Drone Hangers</td>
+              <td class="py-3 px-3 text-gray-400">$450 / field silo / yr</td>
+              <td class="py-3 px-3 text-gray-400">52,000 Farms</td>
+              <td class="py-3 px-3 text-right font-bold text-emerald-400">$23.4M</td>
+            </tr>
+            <tr class="hover:bg-gray-800/30">
+              <td class="py-3 px-3 font-sans font-medium text-white flex items-center gap-2">
+                <i data-lucide="orbit" class="w-4 h-4 text-rose-400"></i>
+                Lunar/Artemis Commercial Rovers
+              </td>
+              <td class="py-3 px-3 text-gray-300">Commercial Payload Landers & Polar Stations</td>
+              <td class="py-3 px-3 text-gray-400">$350,000 / lunar pad</td>
+              <td class="py-3 px-3 text-gray-400">40 Missions</td>
+              <td class="py-3 px-3 text-right font-bold text-emerald-400">$14.2M</td>
+            </tr>
+            <tr class="bg-gray-950 font-bold text-white">
+              <td colspan="4" class="py-3 px-3 text-right uppercase tracking-wider font-sans">Total Commercial Nationwide ARR:</td>
+              <td class="py-3 px-3 text-right text-emerald-400 text-sm">$214.2M</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Detailed Vertical Deep-Dive Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <!-- Vertical 1 -->
+        <div class="bg-gray-900/40 border border-gray-800 rounded-2xl p-5 backdrop-blur flex flex-col justify-between">
+          <div>
+            <div class="flex items-center gap-2 text-cyan-400 mb-2">
+              <i data-lucide="package" class="w-4 h-4"></i>
+              <h4 class="text-sm font-bold text-white">Warehouse Logistics & E-Commerce AGVs</h4>
+            </div>
+            <p class="text-xs text-gray-300 mb-2">
+              <strong>Physics in 1 Sentence:</strong> High-frequency dynamic $(f, \Phi)$ tracking maintains 94% wireless transfer even as AGV suspension height varies by 40 mm under heavy 2-ton payload compression.
+            </p>
+            <p class="text-xs text-gray-400">
+              <strong>Why Legacy Incumbents Missed It:</strong> Competitors deploy fragile mechanical copper contact pins that spark, oxidise in dusty warehouses, and require manual maintenance every 90 days.
+            </p>
+          </div>
+          <div class="mt-4 pt-2 border-t border-gray-800 text-[11px] mono text-cyan-300">
+            ARR Contribution: $66.3M
+          </div>
+        </div>
+
+        <!-- Vertical 2 -->
+        <div class="bg-gray-900/40 border border-gray-800 rounded-2xl p-5 backdrop-blur flex flex-col justify-between">
+          <div>
+            <div class="flex items-center gap-2 text-amber-400 mb-2">
+              <i data-lucide="pickaxe" class="w-4 h-4"></i>
+              <h4 class="text-sm font-bold text-white">Autonomous Heavy Surface Mining</h4>
+            </div>
+            <p class="text-xs text-gray-300 mb-2">
+              <strong>Physics in 1 Sentence:</strong> Real-time bridge detuning prevents parasitic eddy-current runaway inside iron-rich taconite and copper ore dust layers accumulating between tires.
+            </p>
+            <p class="text-xs text-gray-400">
+              <strong>Why Legacy Incumbents Missed It:</strong> Traditional WPT chargers run open-loop fixed frequencies, causing severe magnetic saturation and thermal blowout when trucks roll over conductive ores.
+            </p>
+          </div>
+          <div class="mt-4 pt-2 border-t border-gray-800 text-[11px] mono text-amber-300">
+            ARR Contribution: $44.2M
+          </div>
+        </div>
+
+        <!-- Vertical 3 -->
+        <div class="bg-gray-900/40 border border-gray-800 rounded-2xl p-5 backdrop-blur flex flex-col justify-between">
+          <div>
+            <div class="flex items-center gap-2 text-violet-400 mb-2">
+              <i data-lucide="plane-takeoff" class="w-4 h-4"></i>
+              <h4 class="text-sm font-bold text-white">Aviation Tarmac Autonomous Ground Fleet</h4>
+            </div>
+            <p class="text-xs text-gray-300 mb-2">
+              <strong>Physics in 1 Sentence:</strong> Dual-axis flux gradient observer guides autonomous tugs to sub-centimeter alignment over inductive ground pads without relying on radar blinded by jet blast rain.
+            </p>
+            <p class="text-xs text-gray-400">
+              <strong>Why Legacy Incumbents Missed It:</strong> Heavy umbilical cables dropped on wet tarmac create severe electrocution and tripping hazards during rapid 35-minute airline turnarounds.
+            </p>
+          </div>
+          <div class="mt-4 pt-2 border-t border-gray-800 text-[11px] mono text-violet-300">
+            ARR Contribution: $34.8M
+          </div>
+        </div>
+
+        <!-- Vertical 4 -->
+        <div class="bg-gray-900/40 border border-gray-800 rounded-2xl p-5 backdrop-blur flex flex-col justify-between">
+          <div>
+            <div class="flex items-center gap-2 text-blue-400 mb-2">
+              <i data-lucide="bus" class="w-4 h-4"></i>
+              <h4 class="text-sm font-bold text-white">Municipal Transit Flash Opportunity Pads</h4>
+            </div>
+            <p class="text-xs text-gray-300 mb-2">
+              <strong>Physics in 1 Sentence:</strong> Instantaneous 200 kHz frequency re-tuning transfers 150 kW into municipal bus floor receivers during brief 20-second passenger boarding stops.
+            </p>
+            <p class="text-xs text-gray-400">
+              <strong>Why Legacy Incumbents Missed It:</strong> Overhead pantographs suffer mechanical wear, icing failures in winter storms, and severe aesthetic opposition from historical urban planning boards.
+            </p>
+          </div>
+          <div class="mt-4 pt-2 border-t border-gray-800 text-[11px] mono text-blue-300">
+            ARR Contribution: $31.3M
+          </div>
+        </div>
+
+        <!-- Vertical 5 -->
+        <div class="bg-gray-900/40 border border-gray-800 rounded-2xl p-5 backdrop-blur flex flex-col justify-between">
+          <div>
+            <div class="flex items-center gap-2 text-emerald-400 mb-2">
+              <i data-lucide="tractor" class="w-4 h-4"></i>
+              <h4 class="text-sm font-bold text-white">Autonomous Precision Ag Swarms</h4>
+            </div>
+            <p class="text-xs text-gray-300 mb-2">
+              <strong>Physics in 1 Sentence:</strong> High-efficiency inductive coupling penetrates 30 mm of wet clay and manure splatter without requiring optical camera cleanliness or manual wipe-downs.
+            </p>
+            <p class="text-xs text-gray-400">
+              <strong>Why Legacy Incumbents Missed It:</strong> Optical docking sensors get coated in mud within 3 hours of damp field operations, marooning robots and halting 24/7 autonomous weeding.
+            </p>
+          </div>
+          <div class="mt-4 pt-2 border-t border-gray-800 text-[11px] mono text-emerald-300">
+            ARR Contribution: $23.4M
+          </div>
+        </div>
+
+        <!-- Vertical 6 -->
+        <div class="bg-gray-900/40 border border-gray-800 rounded-2xl p-5 backdrop-blur flex flex-col justify-between">
+          <div>
+            <div class="flex items-center gap-2 text-rose-400 mb-2">
+              <i data-lucide="satellite" class="w-4 h-4"></i>
+              <h4 class="text-sm font-bold text-white">Artemis Commercial Lunar Surface Outposts</h4>
+            </div>
+            <p class="text-xs text-gray-300 mb-2">
+              <strong>Physics in 1 Sentence:</strong> Contactless inductive power overcomes vacuum cold-welding and abrasive regolith seal jamming, keeping rovers heated throughout 14-day lunar nights.
+            </p>
+            <p class="text-xs text-gray-400">
+              <strong>Why Legacy Incumbents Missed It:</strong> Traditional mechanical plug-in pins seize instantly in ultra-high vacuum as unoxidized metals undergo spontaneous atomic contact bonding.
+            </p>
+          </div>
+          <div class="mt-4 pt-2 border-t border-gray-800 text-[11px] mono text-rose-300">
+            ARR Contribution: $14.2M
+          </div>
+        </div>
+      </div>
+
+      <!-- Executive Call to Action Banner -->
+      <div class="p-6 bg-gray-900/60 border border-gray-800 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div>
+          <h4 class="text-base font-bold text-white">Direct Enterprise Licensing & Technical Collaboration</h4>
+          <p class="text-xs text-gray-400 mt-1">Access FluxGate embedded DSP firmware, hardware reference designs, and test-bench telemetry APIs.</p>
+        </div>
+        <a href="mailto:support@rfwavecode.com" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-violet-600 hover:from-cyan-400 hover:to-violet-500 text-white font-semibold text-xs tracking-wider uppercase transition shadow-lg shadow-cyan-900/30 mono flex items-center gap-2">
+          <i data-lucide="mail" class="w-4 h-4"></i>
+          support@rfwavecode.com
+        </a>
+      </div>
+    </div>
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="bg-gray-950 border-t border-gray-900 py-4 px-4 text-center text-xs text-gray-500 mono">
+    FluxGate WPT Tracker &copy; 2026 | Inquiries: <a href="mailto:support@rfwavecode.com" class="text-cyan-400 hover:underline">support@rfwavecode.com</a> | NASA SBIR Topic Z10.02
+  </footer>
+
+  <!-- ========================================== -->
+  <!-- JAVASCRIPT: SIMULATION, CHARTS & CONTROLS  -->
+  <!-- ========================================== -->
+  <script>
+    // Tab switching architecture
+    const tabMapping = {
+      'sim': { viewId: 'viewSim', btnId: 'tabBtnSim' },
+      'physics': { viewId: 'viewPhysics', btnId: 'tabBtnPhysics' },
+      'proposal': { viewId: 'viewProposal', btnId: 'tabBtnProposal' },
+      'arr': { viewId: 'viewARR', btnId: 'tabBtnARR' }
+    };
+
+    function switchTab(targetKey) {
+      Object.keys(tabMapping).forEach(key => {
+        const item = tabMapping[key];
+        const viewEl = document.getElementById(item.viewId);
+        const btnEl = document.getElementById(item.btnId);
+
+        if (key === targetKey) {
+          viewEl.classList.remove('hidden');
+          btnEl.className = "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm";
+        } else {
+          viewEl.classList.add('hidden');
+          btnEl.className = "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-400 hover:text-gray-200 transition-all";
+        }
+      });
+
+      // Typeset formulas dynamically if switching to math views
+      if (window.MathJax && window.MathJax.typesetPromise) {
+        window.MathJax.typesetPromise();
+      }
+
+      // Re-init canvas sizes when switching back to simulation
+      if (targetKey === 'sim') {
+        setTimeout(() => {
+          resizeCanvas();
+        }, 50);
+      }
+    }
+
+    // ==========================================
+    // PHYSICAL SYSTEM STATE & SIMULATION ENGINE
+    // ==========================================
+    const simState = {
+      // Spatial parameters
+      offsetX: 30, // mm [-120 to +120]
+      gapZ: 55,    // mm [20 to 150]
+      tiltDeg: 4.0, // deg [-25 to +25]
+      
+      // Electrodynamic parameters
+      baseFreq: 85.0, // kHz
+      currentFreq: 85.42, // kHz
+      flux: 42.18, // uWb
+      mutualM: 14.8, // uH
+      couplingK: 0.28,
+      powerKw: 2.42,
+      efficiency: 93.4,
+      eddyLossW: 4.12,
+      regolithConductivity: 1.2e-4, // S/m (ilmenite factor)
+      
+      // Control loop flags
+      autoLoopActive: true,
+      roverActuatorActive: true,
+      anomalyActive: false,
+      anomalyType: 'none',
+
+      // Time tracking
+      tick: 0,
+      phaseHistory: []
+    };
+
+    // DOM References for HUD Metrics
+    const metricFreq = document.getElementById('metricFreq');
+    const metricFlux = document.getElementById('metricFlux');
+    const metricMutual = document.getElementById('metricMutual');
+    const metricEff = document.getElementById('metricEff');
+    const metricEddy = document.getElementById('metricEddy');
+    const metricOffset = document.getElementById('metricOffset');
+    const metricTilt = document.getElementById('metricTilt');
+    const metricSwState = document.getElementById('metricSwState');
+    const statusBadge = document.getElementById('statusBadge');
+    const guidanceVector = document.getElementById('guidanceVector');
+    const canvasRoverPos = document.getElementById('canvasRoverPos');
+    const canvasCoupling = document.getElementById('canvasCoupling');
+    const thermalWarning = document.getElementById('thermalWarning');
+    const livePwrLabel = document.getElementById('livePwrLabel');
+    const liveEddyLabel = document.getElementById('liveEddyLabel');
+
+    // Controls
+    const sliderOffsetX = document.getElementById('sliderOffsetX');
+    const sliderGapZ = document.getElementById('sliderGapZ');
+    const sliderTilt = document.getElementById('sliderTilt');
+    const labelOffsetX = document.getElementById('labelOffsetX');
+    const labelGapZ = document.getElementById('labelGapZ');
+    const labelTilt = document.getElementById('labelTilt');
+    const toggleClosedLoop = document.getElementById('toggleClosedLoop');
+    const toggleRoverWheels = document.getElementById('toggleRoverWheels');
+    const dspControlState = document.getElementById('dspControlState');
+
+    sliderOffsetX.addEventListener('input', (e) => {
+      simState.offsetX = parseFloat(e.target.value);
+      labelOffsetX.textContent = simState.offsetX.toFixed(0) + " mm";
+    });
+    sliderGapZ.addEventListener('input', (e) => {
+      simState.gapZ = parseFloat(e.target.value);
+      labelGapZ.textContent = simState.gapZ.toFixed(0) + " mm";
+    });
+    sliderTilt.addEventListener('input', (e) => {
+      simState.tiltDeg = parseFloat(e.target.value);
+      labelTilt.textContent = simState.tiltDeg.toFixed(1) + " °";
+    });
+
+    toggleClosedLoop.addEventListener('click', () => {
+      simState.autoLoopActive = !simState.autoLoopActive;
+      if (simState.autoLoopActive) {
+        toggleClosedLoop.textContent = "ACTIVE [AUTO]";
+        toggleClosedLoop.className = "px-3 py-1 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-mono text-xs hover:bg-cyan-500/30 transition";
+        dspControlState.textContent = "CLOSED_LOOP_ACTIVE";
+        dspControlState.className = "text-[10px] px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 mono border border-emerald-800";
+      } else {
+        toggleClosedLoop.textContent = "DISABLED [MANUAL]";
+        toggleClosedLoop.className = "px-3 py-1 rounded bg-gray-800 text-gray-400 border border-gray-700 font-mono text-xs hover:bg-gray-700 transition";
+        dspControlState.textContent = "MANUAL_OPEN_LOOP";
+        dspControlState.className = "text-[10px] px-2 py-0.5 rounded bg-amber-950 text-amber-300 mono border border-amber-800";
+      }
+    });
+
+    toggleRoverWheels.addEventListener('click', () => {
+      simState.roverActuatorActive = !simState.roverActuatorActive;
+      if (simState.roverActuatorActive) {
+        toggleRoverWheels.textContent = "DOCKING_LINK [ON]";
+        toggleRoverWheels.className = "px-3 py-1 rounded bg-violet-500/20 text-violet-300 border border-violet-500/40 font-mono text-xs hover:bg-violet-500/30 transition";
+      } else {
+        toggleRoverWheels.textContent = "DOCKING_LINK [OFF]";
+        toggleRoverWheels.className = "px-3 py-1 rounded bg-gray-800 text-gray-400 border border-gray-700 font-mono text-xs hover:bg-gray-700 transition";
+      }
+    });
+
+    function injectFault(type) {
+      simState.anomalyActive = true;
+      simState.anomalyType = type;
+
+      if (type === 'crater_slip') {
+        simState.offsetX = -85;
+        simState.tiltDeg = 16.5;
+        sliderOffsetX.value = -85;
+        sliderTilt.value = 16.5;
+        labelOffsetX.textContent = "-85 mm";
+        labelTilt.textContent = "16.5 °";
+      } else if (type === 'ilmenite_pocket') {
+        simState.regolithConductivity = 8.5e-3; // High conductive regolith
+      } else if (type === 'sudden_decouple') {
+        simState.gapZ = 120;
+        sliderGapZ.value = 120;
+        labelGapZ.textContent = "120 mm";
+      }
+    }
+
+    function resetNominal() {
+      simState.anomalyActive = false;
+      simState.anomalyType = 'none';
+      simState.offsetX = 0;
+      simState.gapZ = 50;
+      simState.tiltDeg = 0;
+      simState.regolithConductivity = 1.2e-4;
+      sliderOffsetX.value = 0;
+      sliderGapZ.value = 50;
+      sliderTilt.value = 0;
+      labelOffsetX.textContent = "0 mm";
+      labelGapZ.textContent = "50 mm";
+      labelTilt.textContent = "0.0 °";
+    }
+
+    // ==========================================
+    // CHART.JS TELEMETRY & PHASE SPACE GRAPHS
+    // ==========================================
+    // 1. Phase Chart: X = Frequency (f, kHz) vs Y = Magnetic Flux Linkage (Phi, uWb)
+    const ctxPhase = document.getElementById('phaseChart').getContext('2d');
+    
+    // Generate nominal baseline curve
+    const nominalBaselineData = [];
+    for (let f = 72; f <= 98; f += 0.8) {
+      // Natural resonant bell curve
+      const phi = 54 / (1 + Math.pow((f - 85) / 5.2, 2));
+      nominalBaselineData.push({ x: f, y: phi });
+    }
+
+    const phaseChart = new Chart(ctxPhase, {
+      type: 'scatter',
+      data: {
+        datasets: [
+          {
+            label: 'Nominal ZVS Baseline',
+            data: nominalBaselineData,
+            showLine: true,
+            borderColor: '#10b981',
+            borderWidth: 2,
+            borderDash: [4, 4],
+            pointRadius: 0,
+            fill: false
+          },
+          {
+            label: 'Hard-Switch Hazard Boundary',
+            data: [
+              { x: 70, y: 18 }, { x: 80, y: 16 }, { x: 85, y: 15 }, { x: 90, y: 16 }, { x: 100, y: 18 }
+            ],
+            showLine: true,
+            borderColor: '#ef4444',
+            borderWidth: 1.5,
+            borderDash: [6, 4],
+            pointRadius: 0,
+            backgroundColor: 'rgba(239, 68, 68, 0.07)',
+            fill: 'start'
+          },
+          {
+            label: 'Active Tracking Trajectory',
+            data: [],
+            showLine: true,
+            borderColor: 'rgba(6, 182, 212, 0.5)',
+            borderWidth: 1.5,
+            pointRadius: 2,
+            pointBackgroundColor: '#06b6d4',
+            fill: false
+          },
+          {
+            label: 'Current Operating State (f, Phi)',
+            data: [{ x: 85.4, y: 42.2 }],
+            pointRadius: 7,
+            pointHoverRadius: 9,
+            pointBackgroundColor: '#38bdf8',
+            pointBorderColor: '#ffffff',
+            pointBorderWidth: 2,
+            showLine: false
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        scales: {
+          x: {
+            title: { display: true, text: 'Bridge Resonant Frequency f (kHz)', color: '#94a3b8', font: { size: 10 } },
+            min: 70,
+            max: 100,
+            grid: { color: '#1e293b' },
+            ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 9 } }
+          },
+          y: {
+            title: { display: true, text: 'Coupled Mutual Flux Φ (μWb)', color: '#94a3b8', font: { size: 10 } },
+            min: 0,
+            max: 60,
+            grid: { color: '#1e293b' },
+            ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 9 } }
+          }
+        },
+        plugins: {
+          legend: { display: false }
+        }
+      }
+    });
+
+    // 2. Transferred Power & Efficiency Chart
+    const ctxPwr = document.getElementById('pwrChart').getContext('2d');
+    const pwrChart = new Chart(ctxPwr, {
+      type: 'line',
+      data: {
+        labels: Array(25).fill(''),
+        datasets: [
+          {
+            label: 'Power (kW)',
+            data: Array(25).fill(2.4),
+            borderColor: '#06b6d4',
+            borderWidth: 1.8,
+            pointRadius: 0,
+            tension: 0.2,
+            yAxisID: 'yPwr'
+          },
+          {
+            label: 'Efficiency (%)',
+            data: Array(25).fill(93.4),
+            borderColor: '#10b981',
+            borderWidth: 1.8,
+            pointRadius: 0,
+            tension: 0.2,
+            yAxisID: 'yEff'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        scales: {
+          x: { display: false },
+          yPwr: {
+            type: 'linear',
+            position: 'left',
+            min: 0,
+            max: 3.5,
+            grid: { color: '#1e293b' },
+            ticks: { color: '#06b6d4', font: { family: 'JetBrains Mono', size: 9 } }
+          },
+          yEff: {
+            type: 'linear',
+            position: 'right',
+            min: 50,
+            max: 100,
+            grid: { display: false },
+            ticks: { color: '#10b981', font: { family: 'JetBrains Mono', size: 9 } }
+          }
+        },
+        plugins: { legend: { display: false } }
+      }
+    });
+
+    // 3. Regolith Eddy Heating Chart
+    const ctxEddy = document.getElementById('eddyChart').getContext('2d');
+    const eddyChart = new Chart(ctxEddy, {
+      type: 'line',
+      data: {
+        labels: Array(25).fill(''),
+        datasets: [
+          {
+            label: 'Eddy Loss (W)',
+            data: Array(25).fill(4.1),
+            borderColor: '#f59e0b',
+            backgroundColor: 'rgba(245, 158, 11, 0.1)',
+            fill: true,
+            borderWidth: 1.5,
+            pointRadius: 0,
+            tension: 0.2
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        scales: {
+          x: { display: false },
+          y: {
+            min: 0,
+            max: 25,
+            grid: { color: '#1e293b' },
+            ticks: { color: '#f59e0b', font: { family: 'JetBrains Mono', size: 9 } }
+          }
+        },
+        plugins: { legend: { display: false } }
+      }
+    });
+
+    // ==========================================
+    // HARDWARE CANVAS RENDERING ENGINE
+    // ==========================================
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      const w = rect.width || 600;
+      const h = rect.height || 320;
+      canvas.width = w * window.devicePixelRatio;
+      canvas.height = h * window.devicePixelRatio;
+      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // Particle field lines
+    const fluxLines = [];
+    for (let i = 0; i < 28; i++) {
+      fluxLines.push({
+        phaseOffset: Math.random() * Math.PI * 2,
+        speed: 0.04 + Math.random() * 0.03,
+        spread: (i / 28) - 0.5
+      });
+    }
+
+    function drawSimulation() {
+      const rect = canvas.getBoundingClientRect();
+      const w = rect.width;
+      const h = rect.height;
+
+      ctx.clearRect(0, 0, w, h);
+
+      // 1. Lunar Terrain & Regolith Bed (Bottom)
+      const groundY = h - 55;
+      
+      // Regolith gradient
+      const regGrad = ctx.createLinearGradient(0, groundY, 0, h);
+      regGrad.addColorStop(0, '#1c1f26');
+      regGrad.addColorStop(1, '#0b0d12');
+      ctx.fillStyle = regGrad;
+      ctx.beginPath();
+      ctx.moveTo(0, groundY + 10);
+      // Rough terrain curve
+      for (let x = 0; x <= w; x += 30) {
+        const rough = Math.sin(x * 0.03) * 3 + Math.cos(x * 0.08) * 2;
+        ctx.lineTo(x, groundY + 10 + rough);
+      }
+      ctx.lineTo(w, h);
+      ctx.lineTo(0, h);
+      ctx.closePath();
+      ctx.fill();
+
+      // Regolith surface border
+      ctx.strokeStyle = '#374151';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // Regolith iron particles / speckles
+      ctx.fillStyle = simState.regolithConductivity > 0.001 ? 'rgba(245, 158, 11, 0.4)' : 'rgba(156, 163, 175, 0.15)';
+      for (let p = 0; p < 45; p++) {
+        const px = ((p * 47) % w);
+        const py = groundY + 14 + ((p * 23) % 40);
+        ctx.fillRect(px, py, 1.5, 1.5);
+      }
+
+      // 2. Primary Ground Transmitter Pad (Stationary Lunar Base)
+      const padCenterX = w * 0.5;
+      const padY = groundY + 4;
+      const padWidth = 190;
+      const padHeight = 14;
+
+      ctx.save();
+      // Ground Pad Housing
+      ctx.fillStyle = '#0f172a';
+      ctx.strokeStyle = '#0284c7';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.roundRect(padCenterX - padWidth/2, padY, padWidth, padHeight, 4);
+      ctx.fill();
+      ctx.stroke();
+
+      // Pad Primary Litz Coil Winding indication
+      ctx.fillStyle = '#38bdf8';
+      for (let c = -6; c <= 6; c++) {
+        ctx.beginPath();
+        ctx.arc(padCenterX + c * 13, padY + padHeight/2, 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+
+      // 3. Rover Chassis & Secondary Receiver Coil (Dynamic)
+      ctx.save();
+      // Mapping rover position
+      // offsetX: -120 to +120 -> scaled to pixels
+      const roverPixelX = padCenterX + (simState.offsetX * (w / 450));
+      // gapZ: 20 to 150 -> scaled up from pad
+      const roverPixelY = padY - (simState.gapZ * 1.3);
+
+      ctx.translate(roverPixelX, roverPixelY);
+      ctx.rotate((simState.tiltDeg * Math.PI) / 180);
+
+      // Secondary Pick-up Coil Pad
+      const rxWidth = 140;
+      const rxHeight = 12;
+      ctx.fillStyle = '#1e1b4b';
+      ctx.strokeStyle = '#818cf8';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.roundRect(-rxWidth/2, -rxHeight, rxWidth, rxHeight, 3);
+      ctx.fill();
+      ctx.stroke();
+
+      // Secondary coil turns
+      ctx.fillStyle = '#c084fc';
+      for (let c = -4; c <= 4; c++) {
+        ctx.beginPath();
+        ctx.arc(c * 13, -rxHeight/2, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Rover Underbody Body Graphic
+      ctx.fillStyle = '#111827';
+      ctx.strokeStyle = '#4b5563';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.roundRect(-90, -40, 180, 28, 6);
+      ctx.fill();
+      ctx.stroke();
+
+      // Rover Wheels & Suspension Struts
+      ctx.fillStyle = '#374151';
+      ctx.strokeStyle = '#6b7280';
+      // Left wheel
+      ctx.beginPath();
+      ctx.arc(-70, -6, 12, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      // Right wheel
+      ctx.beginPath();
+      ctx.arc(70, -6, 12, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // NASA Artemis Insignia / Decal
+      ctx.fillStyle = '#38bdf8';
+      ctx.font = '8px "JetBrains Mono"';
+      ctx.fillText("ROVER RX-7", -30, -22);
+
+      ctx.restore();
+
+      // 4. Dynamic Magnetic Flux Lines & Field Coupling Visualization
+      ctx.save();
+      const couplingStrength = simState.couplingK; // 0.05 to 0.45
+      const fieldAlpha = Math.min(0.85, Math.max(0.15, couplingStrength * 1.8));
+
+      for (let i = 0; i < fluxLines.length; i++) {
+        const fl = fluxLines[i];
+        fl.phaseOffset += fl.speed;
+
+        const startX = padCenterX + fl.spread * (padWidth * 0.85);
+        const startY = padY + 3;
+
+        // Target on secondary
+        const angleRad = (simState.tiltDeg * Math.PI) / 180;
+        const localTargetX = fl.spread * (rxWidth * 0.85);
+        const endX = roverPixelX + localTargetX * Math.cos(angleRad);
+        const endY = roverPixelY + localTargetX * Math.sin(angleRad);
+
+        // Control point curvature based on gap & miscoupling
+        const midY = (startY + endY) / 2;
+        const bulge = Math.sin(simState.tick * 0.05 + fl.phaseOffset) * 15;
+        const cpX = (startX + endX) / 2 + (fl.spread * 50) + bulge;
+        const cpY = midY - 20 - (fl.spread * 15);
+
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.quadraticCurveTo(cpX, cpY, endX, endY);
+
+        if (simState.efficiency > 88) {
+          ctx.strokeStyle = `rgba(56, 189, 248, ${fieldAlpha * 0.7})`;
+        } else if (simState.efficiency > 75) {
+          ctx.strokeStyle = `rgba(245, 158, 11, ${fieldAlpha * 0.8})`;
+        } else {
+          ctx.strokeStyle = `rgba(239, 68, 68, ${fieldAlpha * 0.9})`;
+        }
+
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+      }
+
+      // Eddy current ground heating aura (if regolith loss is high)
+      if (simState.eddyLossW > 3.0) {
+        const auraAlpha = Math.min(0.5, (simState.eddyLossW - 3.0) / 15);
+        ctx.fillStyle = `rgba(245, 158, 11, ${auraAlpha})`;
+        ctx.beginPath();
+        ctx.ellipse(padCenterX, groundY + 12, padWidth * 0.65, 8, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.restore();
+    }
+
+    // ==========================================
+    // CLOSED LOOP PHYSICS & DSP CONTROLLER LOOP
+    // ==========================================
+    function stepSimulation() {
+      simState.tick++;
+
+      // 1. Calculate geometry-dependent mutual inductance & coupling coefficient
+      // Distance from center
+      const radialOffset = Math.sqrt(simState.offsetX * simState.offsetX + Math.pow(simState.gapZ - 45, 2));
+      const tiltFactor = Math.cos((simState.tiltDeg * Math.PI) / 180);
+      
+      // Mutual inductance function (approximated from Neumann model)
+      const baseM = 22.0; // uH at perfect contact
+      const kFactor = Math.exp(-radialOffset / 55.0) * Math.max(0.2, tiltFactor);
+      simState.couplingK = Math.max(0.04, Math.min(0.48, kFactor));
+      simState.mutualM = baseM * simState.couplingK;
+
+      // 2. Closed-Loop DSP Frequency Tracking
+      // Optimal resonant frequency shifts as coupling kappa changes:
+      // f_res = f_0 / sqrt(1 - k^2)
+      const targetZvsFreq = simState.baseFreq / Math.sqrt(1 - 0.45 * Math.pow(simState.couplingK, 2));
+
+      if (simState.autoLoopActive) {
+        // DSP rapidly sweeps bridge frequency towards target
+        const freqError = targetZvsFreq - simState.currentFreq;
+        simState.currentFreq += freqError * 0.22; // Fast soft-switching response
+      } else {
+        // Manual mode stays near base frequency (causing detuning)
+        simState.currentFreq = simState.baseFreq;
+      }
+
+      // 3. Compute linked magnetic flux Phi
+      // Phi = M * I_1
+      const bridgeCurrent = 18.5; // Amperes
+      simState.flux = simState.mutualM * bridgeCurrent * (1.0 + Math.sin(simState.tick * 0.1) * 0.02);
+
+      // 4. Autonomous Rover Micro-Docking Wheel Steering
+      if (simState.autoLoopActive && simState.roverActuatorActive) {
+        // If misalignment exists, DSP signals micro-adjustments to wheels
+        if (Math.abs(simState.offsetX) > 1.5) {
+          const wheelCorrectionSpeed = -Math.sign(simState.offsetX) * Math.min(1.2, Math.abs(simState.offsetX) * 0.04);
+          simState.offsetX += wheelCorrectionSpeed;
+          sliderOffsetX.value = simState.offsetX.toFixed(0);
+          labelOffsetX.textContent = simState.offsetX.toFixed(0) + " mm";
+        }
+        if (Math.abs(simState.tiltDeg) > 0.2) {
+          simState.tiltDeg -= Math.sign(simState.tiltDeg) * 0.1;
+          sliderTilt.value = simState.tiltDeg.toFixed(1);
+          labelTilt.textContent = simState.tiltDeg.toFixed(1) + " °";
+        }
+        if (simState.gapZ > 52) {
+          simState.gapZ -= 0.4;
+          sliderGapZ.value = simState.gapZ.toFixed(0);
+          labelGapZ.textContent = simState.gapZ.toFixed(0) + " mm";
+        }
+      }
+
+      // 5. Transfer Efficiency & Power Losses
+      const freqDetuneDelta = Math.abs(simState.currentFreq - targetZvsFreq);
+      const isZvsSoft = freqDetuneDelta < 0.45;
+      
+      let eff = (simState.couplingK / 0.35) * 94.0 - (freqDetuneDelta * 7.5);
+      eff = Math.max(48.0, Math.min(95.2, eff));
+      simState.efficiency = eff;
+
+      simState.powerKw = (2.8 * (simState.efficiency / 100) * (simState.couplingK / 0.3)).toFixed(2);
+
+      // Regolith Parasitic Loss (increases with frequency detuning & conductivity)
+      const fringeRatio = Math.max(0.2, 1.0 - simState.couplingK);
+      const baseEddy = 2.5 + fringeRatio * 6.5;
+      simState.eddyLossW = (baseEddy * (simState.regolithConductivity / 1.2e-4)).toFixed(2);
+
+      // 6. Update HUD Metrics
+      metricFreq.textContent = simState.currentFreq.toFixed(2);
+      metricFlux.textContent = simState.flux.toFixed(2);
+      metricMutual.textContent = simState.mutualM.toFixed(1);
+      metricEff.textContent = simState.efficiency.toFixed(1);
+      metricEddy.textContent = simState.eddyLossW;
+      metricOffset.textContent = Math.abs(simState.offsetX).toFixed(1);
+      metricTilt.textContent = simState.tiltDeg.toFixed(1);
+
+      if (isZvsSoft && simState.efficiency > 85) {
+        metricSwState.textContent = "Zero-Voltage Active (Soft)";
+        metricSwState.className = "text-[10px] text-emerald-400 font-semibold";
+        statusBadge.textContent = "LOCKED_ZVS";
+        statusBadge.className = "px-2 py-0.5 text-xs font-semibold rounded bg-cyan-950 text-cyan-300 border border-cyan-800";
+        guidanceVector.textContent = simState.offsetX > 2 ? `Wheel Cmd: [Left -${Math.abs(simState.offsetX*0.5).toFixed(0)}mm/s]` : `Aligned Nominal (Optimum)`;
+      } else if (simState.efficiency > 70) {
+        metricSwState.textContent = "Partial Soft-Switch";
+        metricSwState.className = "text-[10px] text-amber-400 font-semibold";
+        statusBadge.textContent = "TRACKING_SWEEP";
+        statusBadge.className = "px-2 py-0.5 text-xs font-semibold rounded bg-amber-950 text-amber-300 border border-amber-800";
+        guidanceVector.textContent = `Seeking Resonance Peak...`;
+      } else {
+        metricSwState.textContent = "HARD-SWITCH DETUNED!";
+        metricSwState.className = "text-[10px] text-rose-400 font-semibold animate-pulse";
+        statusBadge.textContent = "THERMAL_DANGER";
+        statusBadge.className = "px-2 py-0.5 text-xs font-semibold rounded bg-rose-950 text-rose-300 border border-rose-800 animate-pulse";
+        guidanceVector.textContent = `Wheel Vector: EMERGENCY CENTER`;
+      }
+
+      canvasRoverPos.textContent = `[X: ${simState.offsetX.toFixed(0)}mm, Z: ${simState.gapZ.toFixed(0)}mm]`;
+      canvasCoupling.textContent = simState.couplingK.toFixed(2);
+
+      if (simState.eddyLossW > 12.0) {
+        thermalWarning.textContent = "REGOLITH HOTSPOT ALERT: >380 K";
+        thermalWarning.className = "bg-rose-950/90 text-rose-300 border border-rose-600 px-2 py-0.5 rounded text-[10px] mono animate-pulse";
+      } else {
+        thermalWarning.textContent = "COIL TEMP: 318 K (NOMINAL)";
+        thermalWarning.className = "bg-gray-950/80 text-yellow-300 border border-yellow-800/60 px-2 py-0.5 rounded text-[10px] mono";
+      }
+
+      livePwrLabel.textContent = `${simState.powerKw} kW @ ${simState.efficiency.toFixed(1)}%`;
+      liveEddyLabel.textContent = `${simState.eddyLossW} W loss`;
+
+      // Draw canvas
+      drawSimulation();
+
+      // 7. Throttled Chart Updates (Every 4 Ticks)
+      if (simState.tick % 4 === 0) {
+        // Update Phase Chart point and trajectory
+        const currentPt = { x: parseFloat(simState.currentFreq.toFixed(2)), y: parseFloat(simState.flux.toFixed(2)) };
+        phaseChart.data.datasets[3].data = [currentPt];
+        
+        simState.phaseHistory.push(currentPt);
+        if (simState.phaseHistory.length > 20) simState.phaseHistory.shift();
+        phaseChart.data.datasets[2].data = [...simState.phaseHistory];
+        phaseChart.update('none');
+
+        // Update Time Series
+        pwrChart.data.datasets[0].data.push(parseFloat(simState.powerKw));
+        pwrChart.data.datasets[0].data.shift();
+        pwrChart.data.datasets[1].data.push(parseFloat(simState.efficiency.toFixed(1)));
+        pwrChart.data.datasets[1].data.shift();
+        pwrChart.update('none');
+
+        eddyChart.data.datasets[0].data.push(parseFloat(simState.eddyLossW));
+        eddyChart.data.datasets[0].data.shift();
+        eddyChart.update('none');
+      }
+    }
+
+    // Run physics loop at 25 Hz (40 ms)
+    setInterval(stepSimulation, 40);
+
+    // Initialize Lucide Icons
+    window.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+    });
+  </script>
+</body>
+</html>
